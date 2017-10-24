@@ -1,0 +1,110 @@
+#!/bin/bash
+
+if [ "$SHELL" != "/bin/bash" -a "$SHELL" != "/usr/bin/bash" ]; then
+    echo "Please run this script using a bash shell."
+    exit 1
+fi
+
+# Arguments
+REPONAME="$1"
+DIRNAME="$2"
+
+# GLOBALS
+CLONE_FORMAT="git clone ssh://git@git.eng.vmware.com/"
+GIT_HOOK="http://apt.nicira.eng.vmware.com/apt/vmware/githooks"
+HOOKS=( 'commit-msg' 'prepare-commit-msg' )
+USER=`whoami`
+
+GIT_CONFIG_TXT=$(cat <<- EOF
+[remote "review"]
+    url = ssh://$USER@gitreview.eng.vmware.com:29418/$REPONAME
+    fetch = +refs/heads/*:refs/remotes/review/*
+[alias]
+    stat = status -s -uno
+    logs = log --name-only
+    update = pull --rebase
+    pushreview =  "! git push ssh://$USER@gitreview.eng.vmware.com:29418/\$(git config --get remote.origin.url | sed -e 's#.*/##; s#.git\$##')  HEAD:refs/for/\$(git rev-parse --abbrev-ref HEAD)"
+EOF
+)
+
+# FUNCTIONS
+cleanup() {
+    echo "Cleaning up git hooks..."
+    for i in "${HOOKS[@]}"; do
+        if [ -e $i ]; then
+            echo "Removed $i"
+            rm -f $i
+        fi
+    done
+}
+
+if [ "$REPONAME" == "-h" -o -z "$REPONAME" ]; then
+    echo "Usage: $0 <repo_name> [target]"
+    exit 1
+fi
+if [ -z "$DIRNAME" ]; then
+    if [ -d "$REPONAME" ]; then
+        # directory already exists
+        echo "Please provide another target, $REPONAME already exists"
+        exit 1
+    fi
+elif [ -d "$DIRNAME" ]; then
+    echo "Please provide another target, $REPONAME and $DIRNAME already exist"
+    exit 1
+fi
+
+clone_cmd="$CLONE_FORMAT$REPONAME.git $DIRNAME"
+
+echo "(1) Cloning $REPONAME..."
+$clone_cmd
+rc=$?
+if [ $rc -ne 0 ]; then
+    echo "Error cloning repo $REPONAME."
+    exit $rc
+fi
+if [ ! -z "$DIRNAME" ]; then
+    target="$DIRNAME/.git"
+else
+    target="$REPONAME/.git"
+fi
+
+echo "(2) Downloading git hooks..."
+for hook in "${HOOKS[@]}"; do
+    hook_cmd="curl -o $target/hooks/$hook $GIT_HOOK/$hook"
+    echo "    * Downloading $hook"
+    $hook_cmd
+    rc=$?
+    if [ $rc -ne 0 ]; then
+        echo "Error downloading git hook $hook"
+        cleanup
+        exit 0
+    fi
+    echo "        * Ensuring hook permissions are executable"
+    chmod +x $target/hooks/$hook
+done
+
+echo "(3) Adding local git config as a remote in $target/config..."
+echo "$GIT_CONFIG_TXT" >> $target/config
+rc=$?
+if [ $rc -ne 0 ]; then
+    echo "Error adding gerrit as a git remote."
+    echo "Please manually add the following lines to $target/config :"
+    echo "$GIT_CONFIG_TXT"
+    exit 1
+fi
+
+echo "(4) Checking global git config..."
+git_uname=$(git config user.name)
+git_email=$(git config user.email)
+echo "    * Current global git config found to be:"
+echo "    * User : $git_uname"
+echo "    * Email: $git_email"
+if [ -z "$git_uname" -o -z "$git_email" ]; then
+    echo "Git global configuration not properly formatted."
+    echo "Please add the following to your ~/.gitconfig file:"
+    echo "[user]"
+    echo "    name = <your_name>"
+    echo "    email = <your_email>"
+fi
+
+echo "Finished setting up repo \"$REPONAME\"."

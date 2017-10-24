@@ -1,0 +1,2 @@
+#!/bin/bash
+screen -dRR -S hfowler-dev-session
