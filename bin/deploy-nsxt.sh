@@ -13,13 +13,15 @@ OVF_CACHE_DIR=/tmp/ovf-cache
 
 VCIP=10.32.42.242
 VCDATACENTER='Datacenter'
-VCCLUSTER='Cluster'
-VCRESOURCEPOOL='Transformers'
-DATASTORE=Datastore
-NETWORK="--net:Network 0=VM Network"
-TARGET="vi://$VCUSER:$VCPASS@$VCIP/$VCDATACENTER/host/$VCCLUSTER/Resources/$VCRESOURCEPOOL"
+VCCLUSTER='Cluster2'
+DATASTORE='datastore1'
+RESOURCEPOOL='Transformers'
+NETWORK="--net:vnic1=VM Network"
+TARGET="vi://$VCUSER:$VCPASS@$VCIP/$VCDATACENTER/host/$VCCLUSTER/Resources/$RESOURCEPOOL"
 URL=
 SOURCE=
+SIZE="small"
+COREDUMP=""
 
 trap cleanup EXIT QUIT INT TERM
 cleanup()
@@ -31,16 +33,45 @@ cleanup()
 
 usage()
 {
-   echo "$0 <local-ovf-filename> <vm-name>"
-   echo "   e.g. $0 nsx-edge-2.1.0.0.0.8721940.ovf edge-test1"
+   options_string="[-s|--size small|medium||large]"
+   echo "$0 <local-ovf-filename> <vm-name-prefix>"
+   echo "   e.g. $0 $options_string nsx-edge-2.2.0.0.0.7676810.ova edge1"
+   echo "        $0 $options_string nsx-edge-2.2.0.0.0.7676810.ovf edge2"
    echo
-   echo "$0 <ovf-url> <vm-name>"
-   echo "   e.g. $0 http://build-squid.eng.vmware.com/build/mts/release/sb-8721940/publish/exports/ovf/nsx-edge-2.1.0.0.0.8721940.ovf edge-test1"
+   echo "$0 <ova-url> <vm-name-prefix>"
+   echo "   e.g. $0 $options_string http://build-squid.eng.vmware.com/build/mts/release/bora-7676810/publish/exports/ova/nsx-edge-2.2.0.0.0.7676810.ova edge1"
    echo
-   echo "$0 <official-or-sandbox-build-number> <vm-name>"
-   echo "   e.g. $0 sb-1234567 edge-compact-test1"
-   echo "        $0 ob-7654321 edge-compact-test1"
+   echo "$0 <official-or-sandbox-build-number> <vm-name-prefix>"
+   echo "   e.g. $0 $options_string sb-1234567 edge1"
+   echo "        $0 $options_string ob-7654321 edge2"
 }
+
+while :
+do
+   case "$1" in
+   -s|--size)
+      case "$2" in
+      small|medium|large)
+         SIZE="$2"
+         ;;
+      *)
+         echo "Error: Unknown size: $2" >&2
+         usage
+         exit 1
+         ;;
+      esac
+      shift 2
+      ;;
+   -*) # Unknown option
+      echo "Error: Unknown option: $1" >&2
+      usage
+      exit 1
+      ;;
+   *) # No more options
+      break
+      ;;
+   esac
+done
 
 if [ "$#" -ne 2 ]; then
    usage
@@ -60,7 +91,15 @@ elif [[ $1 =~ ^(ob|sb)-([0-9]*)$ ]]; then
    if [ "$PREFIX" == "ob" ]; then
       PREFIX="bora"
    fi
-   SOURCE="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/exports/ovf/nsx-edge-2.1.0.0.0.$BUILDNUM.ovf"
+   URL="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/exports/ova/nsx-edge-2.2.0.0.0.$BUILDNUM.ova"
+fi
+
+# Download the ova, if required.
+if [[ $URL =~ ^http(|s):// ]]; then
+   FILENAME=$(basename $URL)
+   TMPDIR=$(mktemp -d /tmp/ovf-XXXXX)
+   wget -P $TMPDIR $URL
+   SOURCE=$TMPDIR/$FILENAME
 fi
 
 if [ -z "$SOURCE" ]; then
@@ -70,7 +109,7 @@ if [ -z "$SOURCE" ]; then
    exit 1
 fi
 
-VMNAME=$2
+VMNAME=$2-$SIZE
 
 $OVFTOOL_BIN \
    --acceptAllEulas \
@@ -78,8 +117,8 @@ $OVFTOOL_BIN \
    --noSSLVerify \
    --name="$VMNAME" \
    --datastore=$DATASTORE \
-   --net:"Network 0=VM Network" \
-   --powerOn \
+   --net:'Network 0'="VM Network" \
+  --powerOn \
    "$SOURCE" \
    "$TARGET"
 

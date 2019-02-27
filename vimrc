@@ -40,14 +40,20 @@ set rtp+=~/.vim/bundle/Vundle.vim
 call vundle#begin()
 " let Vundle manage Vundle, required
 Plugin 'gmarik/Vundle.vim'
+
 Plugin 'kien/ctrlp.vim'
-Plugin 'xolox/vim-misc'
-Plugin 'xolox/vim-easytags'
+" Plugin 'xolox/vim-misc'
+" Plugin 'xolox/vim-easytags'
 Plugin 'scrooloose/nerdtree.git'
-Plugin 'altercation/vim-colors-solarized'
 Plugin 'bling/vim-airline'
 Plugin 'majutsushi/tagbar'
 Plugin 'airblade/vim-gitgutter'
+Plugin 'wincent/command-t'
+Plugin 'tpope/vim-fugitive'
+
+" Color schemes
+Plugin 'altercation/vim-colors-solarized'
+
 " All of your Plugins must be added before the following line
 call vundle#end()            " required
 filetype plugin indent on    " required
@@ -56,15 +62,23 @@ filetype plugin indent on    " required
 " Make VIMs update time shorter as recommended for vim-gitgutter
 set updatetime=250
 
-" vim-airline settings
-"set laststatus=2
+set tags=./tags,tags;
+
+" CtrlP settings
+" nnoremap <leader>. :CtrlPTag<cr>
+let g:ctrlp_map = '<c-p>'
+let g:ctrlp_cmd = 'CtrlPTag'
+
+" vim-airline settings"set laststatus=2
 " Enable the list of buffers
 "let g:airline#extensions#tabline#enabled = 1
 " Show just the filename
 "let g:airline#extensions#tabline#fnamemod = ':t'
 
-" vim-easytags options
-let g:easytags_on_cursorhold = 0
+" CommandT key mappings
+"nmap <silent> <Leader>t <Plug>(CommandT)
+"nmap <silent> <Leader>b <Plug>(CommandTBuffer)
+"nmap <silent> <Leader>j <Plug>(CommandTJump)
 
 " nerdtree settings
 " automatically open NERDTree when vim starts if no files were specified
@@ -93,4 +107,26 @@ nnoremap <C-l> <C-w>l
 set t_Co=256
 syntax enable
 set background=dark
-:silent! colorscheme solarized
+" :silent! colorscheme solarized
+colorscheme solarized
+
+" Zoom / Restore window.
+function! s:ZoomToggle() abort
+    if exists('t:zoomed') && t:zoomed
+        execute t:zoom_winrestcmd
+        let t:zoomed = 0
+    else
+        let t:zoom_winrestcmd = winrestcmd()
+        resize
+        vertical resize
+        let t:zoomed = 1
+    endif
+endfunction
+command! ZoomToggle call s:ZoomToggle()
+nnoremap <silent> <C-w>w :ZoomToggle<CR>
+
+
+let coverity_vimrc = "/build/toolchain/lin64/cov-analysis-8.7.1/doc/examples/desktop-scripts/coverity.vimrc"
+if filereadable(coverity_vimrc)
+    execute "source" . fnameescape(coverity_vimrc)
+endif

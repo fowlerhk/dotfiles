@@ -21,6 +21,7 @@ URL=
 SOURCE=
 SIZE="compact"
 COREDUMP=""
+POWERON="--powerOn"
 
 trap cleanup EXIT QUIT INT TERM
 cleanup()
@@ -34,13 +35,13 @@ usage()
 {
    options_string="[-s|--size compact|large|qlarge|xlarge] [-c|--coredump]"
    echo "$0 <local-ovf-filename> <vm-name-prefix>"
-   echo "   e.g. $0 $options_string vShieldEdge-compact.ovf edge-test1"
+   echo "   e.g. $0 $options_string nsx-edge-compact.ovf edge-test1"
    echo
    echo "$0 <local-ovf-tarball-filename> <vm-name-prefix>"
-   echo "   e.g. $0 $options_string vse-ovf-1234567.tar.gz edge-test1"
+   echo "   e.g. $0 $options_string nsx-edge-ovf-1234567.tar.gz edge-test1"
    echo
    echo "$0 <ovf-tarball-url> <vm-name-prefix>"
-   echo "   e.g. $0 $options_string http://build-squid.eng.vmware.com/build/mts/release/sb-7957027/publish/vse-ovf-7957027.tar.gz edge-test1"
+   echo "   e.g. $0 $options_string http://build-squid.eng.vmware.com/build/mts/release/sb-7957027/publish/nsx-edge-ovf-7957027.tar.gz edge-test1"
    echo
    echo "$0 <official-or-sandbox-build-number> <vm-name-prefix>"
    echo "   e.g. $0 $options_string sb-1234567 edge-test1"
@@ -65,6 +66,10 @@ do
       ;;
    -c|--coredump)
       COREDUMP="-coredump"
+      shift 1
+      ;;
+   -p)
+      POWERON=""
       shift 1
       ;;
    -*) # Unknown option
@@ -94,11 +99,14 @@ elif [[ $1 =~ .*\.(tar\.gz|tgz) ]] && [ -e "$1" ]; then
    URL=$1
    TMPDIR=$(mktemp -d /tmp/ovf-XXXXX)
    tar -xf $1 -C $TMPDIR
-   SOURCE=$TMPDIR/vShieldEdge-$SIZE$COREDUMP.ovf
+   SOURCE=$TMPDIR/nsx-edge-$SIZE$COREDUMP.ovf
    if [ ! -e $SOURCE ]; then
-      echo "Invalid OVF tarball. OVF file not found inside!"
-      usage
-      exit 1
+      SOURCE=$TMPDIR/vShieldEdge-$SIZE$COREDUMP.ovf
+      if [ ! -e $SOURCE ]; then
+         echo "Invalid OVF tarball. OVF file not found inside!"
+         usage
+         exit 1
+      fi
    fi
 elif [[ $1 =~ ^(ob|sb)-([0-9]*)$ ]]; then
    # Treat it as an official/sandbox build number
@@ -107,7 +115,7 @@ elif [[ $1 =~ ^(ob|sb)-([0-9]*)$ ]]; then
    if [ "$PREFIX" == "ob" ]; then
       PREFIX="bora"
    fi
-   URL="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/vse-ovf-$BUILDNUM.tar.gz"
+   URL="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/nsx-edge-ovf-$BUILDNUM.tar.gz"
 elif [[ $1 =~ ^http(|s):.*\.tar\.gz ]]; then
    # Treat as a ovf tarball URL
    URL=$1
@@ -115,11 +123,22 @@ fi
 
 # Download and extract the ovf tarball, if required.
 if [[ $URL =~ ^http(|s):// ]]; then
-   FILENAME=$(basename $URL)
    TMPDIR=$(mktemp -d /tmp/ovf-XXXXX)
+   FILENAME=$(basename $URL)
+   SOURCE=$TMPDIR/nsx-edge-$SIZE$COREDUMP.ovf
    wget -P $TMPDIR $URL
+   if [ $? -ne 0 ]; then
+      # Fallback and try again using the older tarball name.
+      URL="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/vse-ovf-$BUILDNUM.tar.gz"
+      FILENAME=$(basename $URL)
+      SOURCE=$TMPDIR/vShieldEdge-$SIZE$COREDUMP.ovf
+      wget -P $TMPDIR $URL
+      if [ $? -ne 0 ]; then
+         echo "ERROR: Failed to download Edge OVF tarball."
+         exit 1
+      fi
+   fi
    tar -xf $TMPDIR/$FILENAME -C $TMPDIR
-   SOURCE=$TMPDIR/vShieldEdge-$SIZE$COREDUMP.ovf
 fi
 
 if [ -z "$SOURCE" ]; then
@@ -138,7 +157,7 @@ $OVFTOOL_BIN \
    --name="$VMNAME" \
    --datastore=$DATASTORE \
    --net:vnic1="VM Network" \
-  --powerOn \
+   $POWERON \
    "$SOURCE" \
    "$TARGET"
 

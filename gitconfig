@@ -1,3 +1,5 @@
 [user]
 	email = hfowler@vmware.com
 	name = Hayden Fowler
+[http]
+	sslcainfo = /etc/ssl/certs/ca-certificates.crt
