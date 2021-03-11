@@ -3,3 +3,7 @@
 	name = Hayden Fowler
 [http]
 	sslcainfo = /etc/ssl/certs/ca-certificates.crt
+[alias]
+	pushwip =  "! git push ssh://hfowler@gitreview.eng.vmware.com:29418/$(git config --get remote.origin.url | sed -e 's#.*/##; s#.git$##')  HEAD:refs/for/$(git rev-parse --abbrev-ref HEAD)%wip"
+	pushpriv =  "! git push ssh://hfowler@gitreview.eng.vmware.com:29418/$(git config --get remote.origin.url | sed -e 's#.*/##; s#.git$##')  HEAD:refs/for/$(git rev-parse --abbrev-ref HEAD)%private"
+

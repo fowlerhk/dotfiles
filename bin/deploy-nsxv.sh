@@ -2,7 +2,7 @@
 # Helper script to deploy an NSXv Edge VM (compact).
 #
 VCUSER=administrator@vsphere.local
-VCPASS='VMwareca$hc0w'
+VCPASS='Admin!23Admin'
 OVFTOOL_BIN=/build/toolchain/lin64/ovftool-4.1.0/ovftool
 
 # Location of the OVF tarball cache directory. Tarballs are downloaded to here
@@ -11,7 +11,7 @@ OVF_CACHE_DIR=/tmp/ovf-cache
 
 # Deployment environment config
 
-VCIP=10.32.42.242
+VCIP=10.20.119.89
 VCDATACENTER='Datacenter'
 VCCLUSTER='Cluster'
 DATASTORE=Datastore

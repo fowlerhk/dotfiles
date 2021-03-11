@@ -10,7 +10,9 @@ REPONAME="$1"
 DIRNAME="$2"
 
 # GLOBALS
-CLONE_FORMAT="git clone ssh://git@git.eng.vmware.com/"
+CLONE_FORMAT="git clone ssh://git@git.eng.vmware.com/core-build/"
+#CLONE_FORMAT="git clone ssh://git@git.eng.vmware.com/"
+#CLONE_FORMAT="git clone ssh://gitlab.eng.vmware.com/core-build/"
 GIT_HOOK="http://apt.nicira.eng.vmware.com/apt/vmware/githooks"
 HOOKS=( 'commit-msg' 'prepare-commit-msg' )
 USER=`whoami`
@@ -56,6 +58,7 @@ fi
 clone_cmd="$CLONE_FORMAT$REPONAME.git $DIRNAME"
 
 echo "(1) Cloning $REPONAME..."
+echo "(1) $clone_cmd"
 $clone_cmd
 rc=$?
 if [ $rc -ne 0 ]; then

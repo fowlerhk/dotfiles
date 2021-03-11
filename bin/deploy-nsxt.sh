@@ -2,7 +2,8 @@
 # Helper script to deploy an NSXv Edge VM (compact).
 #
 VCUSER=administrator@vsphere.local
-VCPASS='VMwareca$hc0w'
+VCPASS='Admin!23Admin'
+#VCPASS='VMwareca$hc0w'
 OVFTOOL_BIN=/build/toolchain/lin64/ovftool-4.1.0/ovftool
 
 # Location of the OVF tarball cache directory. Tarballs are downloaded to here
@@ -11,17 +12,18 @@ OVF_CACHE_DIR=/tmp/ovf-cache
 
 # Deployment environment config
 
-VCIP=10.32.42.242
+VCIP=10.20.119.89
 VCDATACENTER='Datacenter'
-VCCLUSTER='Cluster2'
-DATASTORE='datastore1'
+VCCLUSTER='Cluster'
+DATASTORE='DatastoreSSD'
 RESOURCEPOOL='Transformers'
-NETWORK="--net:vnic1=VM Network"
+NETWORK0="Network 0=VM Network"
 TARGET="vi://$VCUSER:$VCPASS@$VCIP/$VCDATACENTER/host/$VCCLUSTER/Resources/$RESOURCEPOOL"
 URL=
 SOURCE=
 SIZE="small"
 COREDUMP=""
+PASSWORD="Admin!23Admin"
 
 trap cleanup EXIT QUIT INT TERM
 cleanup()
@@ -91,16 +93,18 @@ elif [[ $1 =~ ^(ob|sb)-([0-9]*)$ ]]; then
    if [ "$PREFIX" == "ob" ]; then
       PREFIX="bora"
    fi
-   URL="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/exports/ova/nsx-edge-2.2.0.0.0.$BUILDNUM.ova"
+   #URL="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/exports/ovf/nsx-edge-3.0.0.0.0.$BUILDNUM.ovf"
+   URL="http://build-squid.eng.vmware.com/build/mts/release/$PREFIX-$BUILDNUM/publish/exports/ovf/nsx-edge-2.3.0.0.6.$BUILDNUM.ovf"
+   SOURCE=$URL
 fi
 
 # Download the ova, if required.
-if [[ $URL =~ ^http(|s):// ]]; then
-   FILENAME=$(basename $URL)
-   TMPDIR=$(mktemp -d /tmp/ovf-XXXXX)
-   wget -P $TMPDIR $URL
-   SOURCE=$TMPDIR/$FILENAME
-fi
+#if [[ $URL =~ ^http(|s):// ]]; then
+#   FILENAME=$(basename $URL)
+#   TMPDIR=$(mktemp -d /tmp/ovf-XXXXX)
+#   wget -P $TMPDIR $URL
+#   SOURCE=$TMPDIR/$FILENAME
+#fi
 
 if [ -z "$SOURCE" ]; then
    # No idea what you said!
@@ -117,8 +121,12 @@ $OVFTOOL_BIN \
    --noSSLVerify \
    --name="$VMNAME" \
    --datastore=$DATASTORE \
-   --net:'Network 0'="VM Network" \
-  --powerOn \
+   --diskMode=thin \
+   --net:"$NETWORK0" \
+   --prop:"is_autonomous_edge=True" \
+   --prop:"nsx_cli_passwd_0=$PASSWORD" \
+   --prop:"nsx_passwd_0=$PASSWORD" \
+   --powerOn \
    "$SOURCE" \
    "$TARGET"
 

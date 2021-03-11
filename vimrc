@@ -125,6 +125,8 @@ endfunction
 command! ZoomToggle call s:ZoomToggle()
 nnoremap <silent> <C-w>w :ZoomToggle<CR>
 
+" CScope
+source ~/.vim/cscope_maps.vim
 
 let coverity_vimrc = "/build/toolchain/lin64/cov-analysis-8.7.1/doc/examples/desktop-scripts/coverity.vimrc"
 if filereadable(coverity_vimrc)
